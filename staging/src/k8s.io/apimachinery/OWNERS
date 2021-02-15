@@ -21,6 +21,6 @@ reviewers:
 - gmarek
 - sttts
 - ncdc
-- tallclair
+- logicalhan
 labels:
 - sig/api-machinery

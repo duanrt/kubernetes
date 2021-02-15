@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,6 +52,8 @@ func (strategy) NamespaceScoped() bool {
 }
 
 func (strategy) PrepareForCreate(ctx context.Context, obj runtime.Object) {
+	secret := obj.(*api.Secret)
+	dropDisabledFields(secret, nil)
 }
 
 func (strategy) Validate(ctx context.Context, obj runtime.Object) field.ErrorList {
@@ -67,34 +68,20 @@ func (strategy) AllowCreateOnUpdate() bool {
 }
 
 func (strategy) PrepareForUpdate(ctx context.Context, obj, old runtime.Object) {
+	newSecret := obj.(*api.Secret)
+	oldSecret := old.(*api.Secret)
+	dropDisabledFields(newSecret, oldSecret)
 }
 
 func (strategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	return validation.ValidateSecretUpdate(obj.(*api.Secret), old.(*api.Secret))
 }
 
-func (strategy) AllowUnconditionalUpdate() bool {
-	return true
+func dropDisabledFields(secret *api.Secret, oldSecret *api.Secret) {
 }
 
-func (s strategy) Export(ctx context.Context, obj runtime.Object, exact bool) error {
-	t, ok := obj.(*api.Secret)
-	if !ok {
-		// unexpected programmer error
-		return fmt.Errorf("unexpected object: %v", obj)
-	}
-	s.PrepareForCreate(ctx, obj)
-	if exact {
-		return nil
-	}
-	// secrets that are tied to the UID of a service account cannot be exported anyway
-	if t.Type == api.SecretTypeServiceAccountToken || len(t.Annotations[api.ServiceAccountUIDKey]) > 0 {
-		errs := []*field.Error{
-			field.Invalid(field.NewPath("type"), t, "can not export service account secrets"),
-		}
-		return errors.NewInvalid(api.Kind("Secret"), t.Name, errs)
-	}
-	return nil
+func (strategy) AllowUnconditionalUpdate() bool {
+	return true
 }
 
 // GetAttrs returns labels and fields of a given object for filtering purposes.
@@ -106,7 +93,7 @@ func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
 	return labels.Set(secret.Labels), SelectableFields(secret), nil
 }
 
-// Matcher returns a generic matcher for a given label and field selector.
+// Matcher returns a selection predicate for a given label and field selector.
 func Matcher(label labels.Selector, field fields.Selector) pkgstorage.SelectionPredicate {
 	return pkgstorage.SelectionPredicate{
 		Label:       label,

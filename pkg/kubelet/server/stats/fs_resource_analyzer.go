@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 type statCache map[types.UID]*volumeStatCalculator
@@ -58,10 +58,10 @@ func newFsResourceAnalyzer(statsProvider Provider, calcVolumePeriod time.Duratio
 func (s *fsResourceAnalyzer) Start() {
 	s.startOnce.Do(func() {
 		if s.calcPeriod <= 0 {
-			klog.Info("Volume stats collection disabled.")
+			klog.InfoS("Volume stats collection disabled")
 			return
 		}
-		klog.Info("Starting FS ResourceAnalyzer")
+		klog.InfoS("Starting FS ResourceAnalyzer")
 		go wait.Forever(func() { s.updateCachedPodVolumeStats() }, s.calcPeriod)
 	})
 }

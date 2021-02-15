@@ -88,9 +88,12 @@ func SetObjectDefaults_EndpointsList(in *v1.EndpointsList) {
 func SetObjectDefaults_EphemeralContainers(in *v1.EphemeralContainers) {
 	for i := range in.EphemeralContainers {
 		a := &in.EphemeralContainers[i]
+		SetDefaults_EphemeralContainer(a)
 		for j := range a.EphemeralContainerCommon.Ports {
 			b := &a.EphemeralContainerCommon.Ports[j]
-			SetDefaults_ContainerPort(b)
+			if b.Protocol == "" {
+				b.Protocol = "TCP"
+			}
 		}
 		for j := range a.EphemeralContainerCommon.Env {
 			b := &a.EphemeralContainerCommon.Env[j]
@@ -112,6 +115,12 @@ func SetObjectDefaults_EphemeralContainers(in *v1.EphemeralContainers) {
 			SetDefaults_Probe(a.EphemeralContainerCommon.ReadinessProbe)
 			if a.EphemeralContainerCommon.ReadinessProbe.Handler.HTTPGet != nil {
 				SetDefaults_HTTPGetAction(a.EphemeralContainerCommon.ReadinessProbe.Handler.HTTPGet)
+			}
+		}
+		if a.EphemeralContainerCommon.StartupProbe != nil {
+			SetDefaults_Probe(a.EphemeralContainerCommon.StartupProbe)
+			if a.EphemeralContainerCommon.StartupProbe.Handler.HTTPGet != nil {
+				SetDefaults_HTTPGetAction(a.EphemeralContainerCommon.StartupProbe.Handler.HTTPGet)
 			}
 		}
 		if a.EphemeralContainerCommon.Lifecycle != nil {
@@ -194,6 +203,7 @@ func SetObjectDefaults_PersistentVolume(in *v1.PersistentVolume) {
 
 func SetObjectDefaults_PersistentVolumeClaim(in *v1.PersistentVolumeClaim) {
 	SetDefaults_PersistentVolumeClaim(in)
+	SetDefaults_PersistentVolumeClaimSpec(&in.Spec)
 	SetDefaults_ResourceList(&in.Spec.Resources.Limits)
 	SetDefaults_ResourceList(&in.Spec.Resources.Requests)
 	SetDefaults_ResourceList(&in.Status.Capacity)
@@ -266,13 +276,22 @@ func SetObjectDefaults_Pod(in *v1.Pod) {
 		if a.VolumeSource.ScaleIO != nil {
 			SetDefaults_ScaleIOVolumeSource(a.VolumeSource.ScaleIO)
 		}
+		if a.VolumeSource.Ephemeral != nil {
+			if a.VolumeSource.Ephemeral.VolumeClaimTemplate != nil {
+				SetDefaults_PersistentVolumeClaimSpec(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec)
+				SetDefaults_ResourceList(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Limits)
+				SetDefaults_ResourceList(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Requests)
+			}
+		}
 	}
 	for i := range in.Spec.InitContainers {
 		a := &in.Spec.InitContainers[i]
 		SetDefaults_Container(a)
 		for j := range a.Ports {
 			b := &a.Ports[j]
-			SetDefaults_ContainerPort(b)
+			if b.Protocol == "" {
+				b.Protocol = "TCP"
+			}
 		}
 		for j := range a.Env {
 			b := &a.Env[j]
@@ -294,6 +313,12 @@ func SetObjectDefaults_Pod(in *v1.Pod) {
 			SetDefaults_Probe(a.ReadinessProbe)
 			if a.ReadinessProbe.Handler.HTTPGet != nil {
 				SetDefaults_HTTPGetAction(a.ReadinessProbe.Handler.HTTPGet)
+			}
+		}
+		if a.StartupProbe != nil {
+			SetDefaults_Probe(a.StartupProbe)
+			if a.StartupProbe.Handler.HTTPGet != nil {
+				SetDefaults_HTTPGetAction(a.StartupProbe.Handler.HTTPGet)
 			}
 		}
 		if a.Lifecycle != nil {
@@ -314,7 +339,9 @@ func SetObjectDefaults_Pod(in *v1.Pod) {
 		SetDefaults_Container(a)
 		for j := range a.Ports {
 			b := &a.Ports[j]
-			SetDefaults_ContainerPort(b)
+			if b.Protocol == "" {
+				b.Protocol = "TCP"
+			}
 		}
 		for j := range a.Env {
 			b := &a.Env[j]
@@ -338,6 +365,12 @@ func SetObjectDefaults_Pod(in *v1.Pod) {
 				SetDefaults_HTTPGetAction(a.ReadinessProbe.Handler.HTTPGet)
 			}
 		}
+		if a.StartupProbe != nil {
+			SetDefaults_Probe(a.StartupProbe)
+			if a.StartupProbe.Handler.HTTPGet != nil {
+				SetDefaults_HTTPGetAction(a.StartupProbe.Handler.HTTPGet)
+			}
+		}
 		if a.Lifecycle != nil {
 			if a.Lifecycle.PostStart != nil {
 				if a.Lifecycle.PostStart.HTTPGet != nil {
@@ -353,9 +386,12 @@ func SetObjectDefaults_Pod(in *v1.Pod) {
 	}
 	for i := range in.Spec.EphemeralContainers {
 		a := &in.Spec.EphemeralContainers[i]
+		SetDefaults_EphemeralContainer(a)
 		for j := range a.EphemeralContainerCommon.Ports {
 			b := &a.EphemeralContainerCommon.Ports[j]
-			SetDefaults_ContainerPort(b)
+			if b.Protocol == "" {
+				b.Protocol = "TCP"
+			}
 		}
 		for j := range a.EphemeralContainerCommon.Env {
 			b := &a.EphemeralContainerCommon.Env[j]
@@ -377,6 +413,12 @@ func SetObjectDefaults_Pod(in *v1.Pod) {
 			SetDefaults_Probe(a.EphemeralContainerCommon.ReadinessProbe)
 			if a.EphemeralContainerCommon.ReadinessProbe.Handler.HTTPGet != nil {
 				SetDefaults_HTTPGetAction(a.EphemeralContainerCommon.ReadinessProbe.Handler.HTTPGet)
+			}
+		}
+		if a.EphemeralContainerCommon.StartupProbe != nil {
+			SetDefaults_Probe(a.EphemeralContainerCommon.StartupProbe)
+			if a.EphemeralContainerCommon.StartupProbe.Handler.HTTPGet != nil {
+				SetDefaults_HTTPGetAction(a.EphemeralContainerCommon.StartupProbe.Handler.HTTPGet)
 			}
 		}
 		if a.EphemeralContainerCommon.Lifecycle != nil {
@@ -454,13 +496,22 @@ func SetObjectDefaults_PodTemplate(in *v1.PodTemplate) {
 		if a.VolumeSource.ScaleIO != nil {
 			SetDefaults_ScaleIOVolumeSource(a.VolumeSource.ScaleIO)
 		}
+		if a.VolumeSource.Ephemeral != nil {
+			if a.VolumeSource.Ephemeral.VolumeClaimTemplate != nil {
+				SetDefaults_PersistentVolumeClaimSpec(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec)
+				SetDefaults_ResourceList(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Limits)
+				SetDefaults_ResourceList(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Requests)
+			}
+		}
 	}
 	for i := range in.Template.Spec.InitContainers {
 		a := &in.Template.Spec.InitContainers[i]
 		SetDefaults_Container(a)
 		for j := range a.Ports {
 			b := &a.Ports[j]
-			SetDefaults_ContainerPort(b)
+			if b.Protocol == "" {
+				b.Protocol = "TCP"
+			}
 		}
 		for j := range a.Env {
 			b := &a.Env[j]
@@ -482,6 +533,12 @@ func SetObjectDefaults_PodTemplate(in *v1.PodTemplate) {
 			SetDefaults_Probe(a.ReadinessProbe)
 			if a.ReadinessProbe.Handler.HTTPGet != nil {
 				SetDefaults_HTTPGetAction(a.ReadinessProbe.Handler.HTTPGet)
+			}
+		}
+		if a.StartupProbe != nil {
+			SetDefaults_Probe(a.StartupProbe)
+			if a.StartupProbe.Handler.HTTPGet != nil {
+				SetDefaults_HTTPGetAction(a.StartupProbe.Handler.HTTPGet)
 			}
 		}
 		if a.Lifecycle != nil {
@@ -502,7 +559,9 @@ func SetObjectDefaults_PodTemplate(in *v1.PodTemplate) {
 		SetDefaults_Container(a)
 		for j := range a.Ports {
 			b := &a.Ports[j]
-			SetDefaults_ContainerPort(b)
+			if b.Protocol == "" {
+				b.Protocol = "TCP"
+			}
 		}
 		for j := range a.Env {
 			b := &a.Env[j]
@@ -526,6 +585,12 @@ func SetObjectDefaults_PodTemplate(in *v1.PodTemplate) {
 				SetDefaults_HTTPGetAction(a.ReadinessProbe.Handler.HTTPGet)
 			}
 		}
+		if a.StartupProbe != nil {
+			SetDefaults_Probe(a.StartupProbe)
+			if a.StartupProbe.Handler.HTTPGet != nil {
+				SetDefaults_HTTPGetAction(a.StartupProbe.Handler.HTTPGet)
+			}
+		}
 		if a.Lifecycle != nil {
 			if a.Lifecycle.PostStart != nil {
 				if a.Lifecycle.PostStart.HTTPGet != nil {
@@ -541,9 +606,12 @@ func SetObjectDefaults_PodTemplate(in *v1.PodTemplate) {
 	}
 	for i := range in.Template.Spec.EphemeralContainers {
 		a := &in.Template.Spec.EphemeralContainers[i]
+		SetDefaults_EphemeralContainer(a)
 		for j := range a.EphemeralContainerCommon.Ports {
 			b := &a.EphemeralContainerCommon.Ports[j]
-			SetDefaults_ContainerPort(b)
+			if b.Protocol == "" {
+				b.Protocol = "TCP"
+			}
 		}
 		for j := range a.EphemeralContainerCommon.Env {
 			b := &a.EphemeralContainerCommon.Env[j]
@@ -565,6 +633,12 @@ func SetObjectDefaults_PodTemplate(in *v1.PodTemplate) {
 			SetDefaults_Probe(a.EphemeralContainerCommon.ReadinessProbe)
 			if a.EphemeralContainerCommon.ReadinessProbe.Handler.HTTPGet != nil {
 				SetDefaults_HTTPGetAction(a.EphemeralContainerCommon.ReadinessProbe.Handler.HTTPGet)
+			}
+		}
+		if a.EphemeralContainerCommon.StartupProbe != nil {
+			SetDefaults_Probe(a.EphemeralContainerCommon.StartupProbe)
+			if a.EphemeralContainerCommon.StartupProbe.Handler.HTTPGet != nil {
+				SetDefaults_HTTPGetAction(a.EphemeralContainerCommon.StartupProbe.Handler.HTTPGet)
 			}
 		}
 		if a.EphemeralContainerCommon.Lifecycle != nil {
@@ -644,13 +718,22 @@ func SetObjectDefaults_ReplicationController(in *v1.ReplicationController) {
 			if a.VolumeSource.ScaleIO != nil {
 				SetDefaults_ScaleIOVolumeSource(a.VolumeSource.ScaleIO)
 			}
+			if a.VolumeSource.Ephemeral != nil {
+				if a.VolumeSource.Ephemeral.VolumeClaimTemplate != nil {
+					SetDefaults_PersistentVolumeClaimSpec(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec)
+					SetDefaults_ResourceList(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Limits)
+					SetDefaults_ResourceList(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Requests)
+				}
+			}
 		}
 		for i := range in.Spec.Template.Spec.InitContainers {
 			a := &in.Spec.Template.Spec.InitContainers[i]
 			SetDefaults_Container(a)
 			for j := range a.Ports {
 				b := &a.Ports[j]
-				SetDefaults_ContainerPort(b)
+				if b.Protocol == "" {
+					b.Protocol = "TCP"
+				}
 			}
 			for j := range a.Env {
 				b := &a.Env[j]
@@ -672,6 +755,12 @@ func SetObjectDefaults_ReplicationController(in *v1.ReplicationController) {
 				SetDefaults_Probe(a.ReadinessProbe)
 				if a.ReadinessProbe.Handler.HTTPGet != nil {
 					SetDefaults_HTTPGetAction(a.ReadinessProbe.Handler.HTTPGet)
+				}
+			}
+			if a.StartupProbe != nil {
+				SetDefaults_Probe(a.StartupProbe)
+				if a.StartupProbe.Handler.HTTPGet != nil {
+					SetDefaults_HTTPGetAction(a.StartupProbe.Handler.HTTPGet)
 				}
 			}
 			if a.Lifecycle != nil {
@@ -692,7 +781,9 @@ func SetObjectDefaults_ReplicationController(in *v1.ReplicationController) {
 			SetDefaults_Container(a)
 			for j := range a.Ports {
 				b := &a.Ports[j]
-				SetDefaults_ContainerPort(b)
+				if b.Protocol == "" {
+					b.Protocol = "TCP"
+				}
 			}
 			for j := range a.Env {
 				b := &a.Env[j]
@@ -716,6 +807,12 @@ func SetObjectDefaults_ReplicationController(in *v1.ReplicationController) {
 					SetDefaults_HTTPGetAction(a.ReadinessProbe.Handler.HTTPGet)
 				}
 			}
+			if a.StartupProbe != nil {
+				SetDefaults_Probe(a.StartupProbe)
+				if a.StartupProbe.Handler.HTTPGet != nil {
+					SetDefaults_HTTPGetAction(a.StartupProbe.Handler.HTTPGet)
+				}
+			}
 			if a.Lifecycle != nil {
 				if a.Lifecycle.PostStart != nil {
 					if a.Lifecycle.PostStart.HTTPGet != nil {
@@ -731,9 +828,12 @@ func SetObjectDefaults_ReplicationController(in *v1.ReplicationController) {
 		}
 		for i := range in.Spec.Template.Spec.EphemeralContainers {
 			a := &in.Spec.Template.Spec.EphemeralContainers[i]
+			SetDefaults_EphemeralContainer(a)
 			for j := range a.EphemeralContainerCommon.Ports {
 				b := &a.EphemeralContainerCommon.Ports[j]
-				SetDefaults_ContainerPort(b)
+				if b.Protocol == "" {
+					b.Protocol = "TCP"
+				}
 			}
 			for j := range a.EphemeralContainerCommon.Env {
 				b := &a.EphemeralContainerCommon.Env[j]
@@ -755,6 +855,12 @@ func SetObjectDefaults_ReplicationController(in *v1.ReplicationController) {
 				SetDefaults_Probe(a.EphemeralContainerCommon.ReadinessProbe)
 				if a.EphemeralContainerCommon.ReadinessProbe.Handler.HTTPGet != nil {
 					SetDefaults_HTTPGetAction(a.EphemeralContainerCommon.ReadinessProbe.Handler.HTTPGet)
+				}
+			}
+			if a.EphemeralContainerCommon.StartupProbe != nil {
+				SetDefaults_Probe(a.EphemeralContainerCommon.StartupProbe)
+				if a.EphemeralContainerCommon.StartupProbe.Handler.HTTPGet != nil {
+					SetDefaults_HTTPGetAction(a.EphemeralContainerCommon.StartupProbe.Handler.HTTPGet)
 				}
 			}
 			if a.EphemeralContainerCommon.Lifecycle != nil {
@@ -807,6 +913,12 @@ func SetObjectDefaults_SecretList(in *v1.SecretList) {
 
 func SetObjectDefaults_Service(in *v1.Service) {
 	SetDefaults_Service(in)
+	for i := range in.Spec.Ports {
+		a := &in.Spec.Ports[i]
+		if a.Protocol == "" {
+			a.Protocol = "TCP"
+		}
+	}
 }
 
 func SetObjectDefaults_ServiceList(in *v1.ServiceList) {

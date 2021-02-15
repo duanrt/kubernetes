@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	kubeadmscheme "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/scheme"
 	kubeadmapiv1beta2 "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1beta2"
@@ -30,7 +31,6 @@ import (
 	cmdutil "k8s.io/kubernetes/cmd/kubeadm/app/cmd/util"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	certsphase "k8s.io/kubernetes/cmd/kubeadm/app/phases/certs"
-	kubeadmutil "k8s.io/kubernetes/cmd/kubeadm/app/util"
 	"k8s.io/kubernetes/cmd/kubeadm/app/util/pkiutil"
 )
 
@@ -67,7 +67,9 @@ func NewCertsPhase() workflow.Phase {
 func localFlags() *pflag.FlagSet {
 	set := pflag.NewFlagSet("csr", pflag.ExitOnError)
 	options.AddCSRFlag(set, &csrOnly)
+	set.MarkDeprecated(options.CSROnly, "This flag will be removed in a future version. Please use kubeadm alpha certs generate-csr instead.")
 	options.AddCSRDirFlag(set, &csrDir)
+	set.MarkDeprecated(options.CSRDir, "This flag will be removed in a future version. Please use kubeadm alpha certs generate-csr instead.")
 	return set
 }
 
@@ -152,20 +154,23 @@ func getCertPhaseFlags(name string) []string {
 
 func getSANDescription(certSpec *certsphase.KubeadmCert) string {
 	//Defaulted config we will use to get SAN certs
-	defaultConfig := &kubeadmapiv1beta2.InitConfiguration{
-		LocalAPIEndpoint: kubeadmapiv1beta2.APIEndpoint{
-			// GetAPIServerAltNames errors without an AdvertiseAddress; this is as good as any.
-			AdvertiseAddress: "127.0.0.1",
-		},
+	defaultConfig := cmdutil.DefaultInitConfiguration()
+	// GetAPIServerAltNames errors without an AdvertiseAddress; this is as good as any.
+	defaultConfig.LocalAPIEndpoint = kubeadmapiv1beta2.APIEndpoint{
+		AdvertiseAddress: "127.0.0.1",
 	}
+
 	defaultInternalConfig := &kubeadmapi.InitConfiguration{}
 
 	kubeadmscheme.Scheme.Default(defaultConfig)
-	err := kubeadmscheme.Scheme.Convert(defaultConfig, defaultInternalConfig, nil)
-	kubeadmutil.CheckErr(err)
+	if err := kubeadmscheme.Scheme.Convert(defaultConfig, defaultInternalConfig, nil); err != nil {
+		return ""
+	}
 
 	certConfig, err := certSpec.GetConfig(defaultInternalConfig)
-	kubeadmutil.CheckErr(err)
+	if err != nil {
+		return ""
+	}
 
 	if len(certConfig.AltNames.DNSNames) == 0 && len(certConfig.AltNames.IPs) == 0 {
 		return ""
@@ -198,7 +203,7 @@ func runCertsSa(c workflow.RunData) error {
 	}
 
 	// create the new service account key (or use existing)
-	return certsphase.CreateServiceAccountKeyAndPublicKeyFiles(data.CertificateWriteDir())
+	return certsphase.CreateServiceAccountKeyAndPublicKeyFiles(data.CertificateWriteDir(), data.Cfg().ClusterConfiguration.PublicKeyAlgorithm())
 }
 
 func runCerts(c workflow.RunData) error {
@@ -218,18 +223,20 @@ func runCAPhase(ca *certsphase.KubeadmCert) func(c workflow.RunData) error {
 			return errors.New("certs phase invoked with an invalid data struct")
 		}
 
-		if _, err := pkiutil.TryLoadCertFromDisk(data.CertificateDir(), ca.BaseName); err == nil {
+		// if using external etcd, skips etcd certificate authority generation
+		if data.Cfg().Etcd.External != nil && ca.Name == "etcd-ca" {
+			fmt.Printf("[certs] External etcd mode: Skipping %s certificate authority generation\n", ca.BaseName)
+			return nil
+		}
+
+		if cert, err := pkiutil.TryLoadCertFromDisk(data.CertificateDir(), ca.BaseName); err == nil {
+			certsphase.CheckCertificatePeriodValidity(ca.BaseName, cert)
+
 			if _, err := pkiutil.TryLoadKeyFromDisk(data.CertificateDir(), ca.BaseName); err == nil {
 				fmt.Printf("[certs] Using existing %s certificate authority\n", ca.BaseName)
 				return nil
 			}
 			fmt.Printf("[certs] Using existing %s keyless certificate authority\n", ca.BaseName)
-			return nil
-		}
-
-		// if using external etcd, skips etcd certificate authority generation
-		if data.Cfg().Etcd.External != nil && ca.Name == "etcd-ca" {
-			fmt.Printf("[certs] External etcd mode: Skipping %s certificate authority generation\n", ca.BaseName)
 			return nil
 		}
 
@@ -250,13 +257,23 @@ func runCertPhase(cert *certsphase.KubeadmCert, caCert *certsphase.KubeadmCert) 
 			return errors.New("certs phase invoked with an invalid data struct")
 		}
 
-		if certData, _, err := pkiutil.TryLoadCertAndKeyFromDisk(data.CertificateDir(), cert.BaseName); err == nil {
+		// if using external etcd, skips etcd certificates generation
+		if data.Cfg().Etcd.External != nil && cert.CAName == "etcd-ca" {
+			fmt.Printf("[certs] External etcd mode: Skipping %s certificate generation\n", cert.BaseName)
+			return nil
+		}
+
+		if certData, intermediates, err := pkiutil.TryLoadCertChainFromDisk(data.CertificateDir(), cert.BaseName); err == nil {
+			certsphase.CheckCertificatePeriodValidity(cert.BaseName, certData)
+
 			caCertData, err := pkiutil.TryLoadCertFromDisk(data.CertificateDir(), caCert.BaseName)
 			if err != nil {
 				return errors.Wrapf(err, "couldn't load CA certificate %s", caCert.Name)
 			}
 
-			if err := certData.CheckSignatureFrom(caCertData); err != nil {
+			certsphase.CheckCertificatePeriodValidity(caCert.BaseName, caCertData)
+
+			if err := pkiutil.VerifyCertChain(certData, intermediates, caCertData); err != nil {
 				return errors.Wrapf(err, "[certs] certificate %s not signed by CA certificate %s", cert.BaseName, caCert.BaseName)
 			}
 
@@ -271,12 +288,6 @@ func runCertPhase(cert *certsphase.KubeadmCert, caCert *certsphase.KubeadmCert) 
 			}
 
 			return certsphase.CreateCSR(cert, data.Cfg(), csrDir)
-		}
-
-		// if using external etcd, skips etcd certificates generation
-		if data.Cfg().Etcd.External != nil && cert.CAName == "etcd-ca" {
-			fmt.Printf("[certs] External etcd mode: Skipping %s certificate authority generation\n", cert.BaseName)
-			return nil
 		}
 
 		// if dryrunning, write certificates to a temporary folder (and defer restore to the path originally specified by the user)

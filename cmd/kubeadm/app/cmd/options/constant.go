@@ -142,4 +142,7 @@ const (
 
 	// EtcdUpgrade flag instruct kubeadm to execute etcd upgrade during upgrades
 	EtcdUpgrade = "etcd-upgrade"
+
+	// Patches flag sets the folder where kubeadm component patches are stored
+	Patches = "experimental-patches"
 )

@@ -394,14 +394,6 @@ func TestVolumeAttachmentValidation(t *testing.T) {
 				},
 			},
 		},
-	}
-	for _, volumeAttachment := range migrationDisabledSuccessCases {
-		if errs := ValidateVolumeAttachment(&volumeAttachment); len(errs) != 0 {
-			t.Errorf("expected success: %v %v", volumeAttachment, errs)
-		}
-	}
-
-	migrationDisabledErrorCases := []storage.VolumeAttachment{
 		{
 			// InlineSpec specified with migration disabled
 			ObjectMeta: metav1.ObjectMeta{Name: "foo"},
@@ -414,13 +406,11 @@ func TestVolumeAttachmentValidation(t *testing.T) {
 			},
 		},
 	}
-
-	for _, volumeAttachment := range migrationDisabledErrorCases {
-		if errs := ValidateVolumeAttachment(&volumeAttachment); len(errs) == 0 {
-			t.Errorf("expected failure: %v %v", volumeAttachment, errs)
+	for _, volumeAttachment := range migrationDisabledSuccessCases {
+		if errs := ValidateVolumeAttachment(&volumeAttachment); len(errs) != 0 {
+			t.Errorf("expected success: %v %v", volumeAttachment, errs)
 		}
 	}
-
 }
 
 func TestVolumeAttachmentUpdateValidation(t *testing.T) {
@@ -1675,65 +1665,133 @@ func TestCSIDriverValidation(t *testing.T) {
 	attachNotRequired := false
 	podInfoOnMount := true
 	notPodInfoOnMount := false
+	notRequiresRepublish := false
+	supportedFSGroupPolicy := storage.FileFSGroupPolicy
+	invalidFSGroupPolicy := storage.ReadWriteOnceWithFSTypeFSGroupPolicy
+	invalidFSGroupPolicy = "invalid-mode"
 	successCases := []storage.CSIDriver{
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: driverName},
 			Spec: storage.CSIDriverSpec{
-				AttachRequired: &attachRequired,
-				PodInfoOnMount: &podInfoOnMount,
+				AttachRequired:    &attachRequired,
+				PodInfoOnMount:    &podInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
 			},
 		},
 		{
 			// driver name: dot only
 			ObjectMeta: metav1.ObjectMeta{Name: "io.kubernetes.storage.csi.driver"},
 			Spec: storage.CSIDriverSpec{
-				AttachRequired: &attachRequired,
-				PodInfoOnMount: &podInfoOnMount,
+				AttachRequired:    &attachRequired,
+				PodInfoOnMount:    &podInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
 			},
 		},
 		{
 			// driver name: dash only
 			ObjectMeta: metav1.ObjectMeta{Name: "io-kubernetes-storage-csi-driver"},
 			Spec: storage.CSIDriverSpec{
-				AttachRequired: &attachRequired,
-				PodInfoOnMount: &notPodInfoOnMount,
+				AttachRequired:    &attachRequired,
+				PodInfoOnMount:    &notPodInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
 			},
 		},
 		{
 			// driver name: numbers
 			ObjectMeta: metav1.ObjectMeta{Name: "1csi2driver3"},
 			Spec: storage.CSIDriverSpec{
-				AttachRequired: &attachRequired,
-				PodInfoOnMount: &podInfoOnMount,
+				AttachRequired:    &attachRequired,
+				PodInfoOnMount:    &podInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
 			},
 		},
 		{
 			// driver name: dot and dash
 			ObjectMeta: metav1.ObjectMeta{Name: "io.kubernetes.storage.csi-driver"},
 			Spec: storage.CSIDriverSpec{
-				AttachRequired: &attachRequired,
-				PodInfoOnMount: &podInfoOnMount,
+				AttachRequired:    &attachRequired,
+				PodInfoOnMount:    &podInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
 			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: driverName},
 			Spec: storage.CSIDriverSpec{
-				AttachRequired: &attachRequired,
-				PodInfoOnMount: &notPodInfoOnMount,
+				AttachRequired:    &attachRequired,
+				PodInfoOnMount:    &notPodInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
 			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: driverName},
 			Spec: storage.CSIDriverSpec{
-				AttachRequired: &attachRequired,
-				PodInfoOnMount: &podInfoOnMount,
+				AttachRequired:    &attachRequired,
+				PodInfoOnMount:    &podInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
 			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: driverName},
 			Spec: storage.CSIDriverSpec{
-				AttachRequired: &attachNotRequired,
-				PodInfoOnMount: &notPodInfoOnMount,
+				AttachRequired:    &attachNotRequired,
+				PodInfoOnMount:    &notPodInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: driverName},
+			Spec: storage.CSIDriverSpec{
+				AttachRequired:    &attachNotRequired,
+				PodInfoOnMount:    &notPodInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
+				VolumeLifecycleModes: []storage.VolumeLifecycleMode{
+					storage.VolumeLifecyclePersistent,
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: driverName},
+			Spec: storage.CSIDriverSpec{
+				AttachRequired:    &attachNotRequired,
+				PodInfoOnMount:    &notPodInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
+				VolumeLifecycleModes: []storage.VolumeLifecycleMode{
+					storage.VolumeLifecycleEphemeral,
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: driverName},
+			Spec: storage.CSIDriverSpec{
+				AttachRequired:    &attachNotRequired,
+				PodInfoOnMount:    &notPodInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
+				VolumeLifecycleModes: []storage.VolumeLifecycleMode{
+					storage.VolumeLifecycleEphemeral,
+					storage.VolumeLifecyclePersistent,
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: driverName},
+			Spec: storage.CSIDriverSpec{
+				AttachRequired:    &attachNotRequired,
+				PodInfoOnMount:    &notPodInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
+				VolumeLifecycleModes: []storage.VolumeLifecycleMode{
+					storage.VolumeLifecycleEphemeral,
+					storage.VolumeLifecyclePersistent,
+					storage.VolumeLifecycleEphemeral,
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: driverName},
+			Spec: storage.CSIDriverSpec{
+				AttachRequired:    &attachNotRequired,
+				PodInfoOnMount:    &notPodInfoOnMount,
+				RequiresRepublish: &notRequiresRepublish,
+				FSGroupPolicy:     &supportedFSGroupPolicy,
 			},
 		},
 	}
@@ -1767,11 +1825,31 @@ func TestCSIDriverValidation(t *testing.T) {
 			},
 		},
 		{
-			// AttachRequired not set
+			// PodInfoOnMount not set
 			ObjectMeta: metav1.ObjectMeta{Name: driverName},
 			Spec: storage.CSIDriverSpec{
 				AttachRequired: &attachNotRequired,
 				PodInfoOnMount: nil,
+			},
+		},
+		{
+			// invalid mode
+			ObjectMeta: metav1.ObjectMeta{Name: driverName},
+			Spec: storage.CSIDriverSpec{
+				AttachRequired: &attachNotRequired,
+				PodInfoOnMount: &notPodInfoOnMount,
+				VolumeLifecycleModes: []storage.VolumeLifecycleMode{
+					"no-such-mode",
+				},
+			},
+		},
+		{
+			// invalid fsGroupPolicy
+			ObjectMeta: metav1.ObjectMeta{Name: driverName},
+			Spec: storage.CSIDriverSpec{
+				AttachRequired: &attachNotRequired,
+				PodInfoOnMount: &notPodInfoOnMount,
+				FSGroupPolicy:  &invalidFSGroupPolicy,
 			},
 		},
 	}
@@ -1779,6 +1857,330 @@ func TestCSIDriverValidation(t *testing.T) {
 	for _, csiDriver := range errorCases {
 		if errs := ValidateCSIDriver(&csiDriver); len(errs) == 0 {
 			t.Errorf("Expected failure for test: %v", csiDriver)
+		}
+	}
+}
+
+func TestCSIDriverValidationUpdate(t *testing.T) {
+	driverName := "test-driver"
+	longName := "my-a-b-c-d-c-f-g-h-i-j-k-l-m-n-o-p-q-r-s-t-u-v-w-x-y-z-ABCDEFGHIJKLMNOPQRSTUVWXYZ-driver"
+	invalidName := "-invalid-@#$%^&*()-"
+	attachRequired := true
+	attachNotRequired := false
+	podInfoOnMount := true
+	notPodInfoOnMount := false
+	notRequiresRepublish := false
+	resourceVersion := "1"
+	invalidFSGroupPolicy := storage.ReadWriteOnceWithFSTypeFSGroupPolicy
+	invalidFSGroupPolicy = "invalid-mode"
+	old := storage.CSIDriver{
+		ObjectMeta: metav1.ObjectMeta{Name: driverName, ResourceVersion: resourceVersion},
+		Spec: storage.CSIDriverSpec{
+			AttachRequired:    &attachNotRequired,
+			PodInfoOnMount:    &notPodInfoOnMount,
+			RequiresRepublish: &notRequiresRepublish,
+			VolumeLifecycleModes: []storage.VolumeLifecycleMode{
+				storage.VolumeLifecycleEphemeral,
+				storage.VolumeLifecyclePersistent,
+			},
+		},
+	}
+
+	// Currently we compare the object against itself
+	// and ensure updates succeed
+	successCases := []storage.CSIDriver{
+		old,
+		// An invalid FSGroupPolicy should still pass
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: driverName, ResourceVersion: resourceVersion},
+			Spec: storage.CSIDriverSpec{
+				AttachRequired: &attachNotRequired,
+				PodInfoOnMount: &notPodInfoOnMount,
+				VolumeLifecycleModes: []storage.VolumeLifecycleMode{
+					storage.VolumeLifecycleEphemeral,
+					storage.VolumeLifecyclePersistent,
+				},
+				FSGroupPolicy: &invalidFSGroupPolicy,
+			},
+		},
+	}
+	for _, csiDriver := range successCases {
+		newDriver := csiDriver.DeepCopy()
+		if errs := ValidateCSIDriverUpdate(&csiDriver, newDriver); len(errs) != 0 {
+			t.Errorf("expected success for %+v: %v", csiDriver, errs)
+		}
+	}
+
+	// Each test case changes exactly one field. None of that is valid.
+	errorCases := []struct {
+		name   string
+		modify func(new *storage.CSIDriver)
+	}{
+		{
+			name: "invalid name",
+			modify: func(new *storage.CSIDriver) {
+				new.Name = invalidName
+			},
+		},
+		{
+			name: "long name",
+			modify: func(new *storage.CSIDriver) {
+				new.Name = longName
+			},
+		},
+		{
+			name: "AttachRequired not set",
+			modify: func(new *storage.CSIDriver) {
+				new.Spec.AttachRequired = nil
+			},
+		},
+		{
+			name: "PodInfoOnMount not set",
+			modify: func(new *storage.CSIDriver) {
+				new.Spec.PodInfoOnMount = nil
+			},
+		},
+		{
+			name: "AttachRequired changed",
+			modify: func(new *storage.CSIDriver) {
+				new.Spec.AttachRequired = &attachRequired
+			},
+		},
+		{
+			name: "PodInfoOnMount changed",
+			modify: func(new *storage.CSIDriver) {
+				new.Spec.PodInfoOnMount = &podInfoOnMount
+			},
+		},
+		{
+			name: "invalid volume lifecycle mode",
+			modify: func(new *storage.CSIDriver) {
+				new.Spec.VolumeLifecycleModes = []storage.VolumeLifecycleMode{
+					"no-such-mode",
+				}
+			},
+		},
+		{
+			name: "volume lifecycle modes not set",
+			modify: func(new *storage.CSIDriver) {
+				new.Spec.VolumeLifecycleModes = nil
+			},
+		},
+		{
+			name: "VolumeLifecyclePersistent removed",
+			modify: func(new *storage.CSIDriver) {
+				new.Spec.VolumeLifecycleModes = []storage.VolumeLifecycleMode{
+					storage.VolumeLifecycleEphemeral,
+				}
+			},
+		},
+		{
+			name: "VolumeLifecycleEphemeral removed",
+			modify: func(new *storage.CSIDriver) {
+				new.Spec.VolumeLifecycleModes = []storage.VolumeLifecycleMode{
+					storage.VolumeLifecyclePersistent,
+				}
+			},
+		},
+		{
+			name: "FSGroupPolicy invalidated",
+			modify: func(new *storage.CSIDriver) {
+				invalidFSGroupPolicy := storage.ReadWriteOnceWithFSTypeFSGroupPolicy
+				invalidFSGroupPolicy = "invalid"
+				new.Spec.FSGroupPolicy = &invalidFSGroupPolicy
+			},
+		},
+		{
+			name: "FSGroupPolicy changed",
+			modify: func(new *storage.CSIDriver) {
+				fileFSGroupPolicy := storage.FileFSGroupPolicy
+				new.Spec.FSGroupPolicy = &fileFSGroupPolicy
+			},
+		},
+	}
+
+	for _, test := range errorCases {
+		t.Run(test.name, func(t *testing.T) {
+			new := old.DeepCopy()
+			test.modify(new)
+			if errs := ValidateCSIDriverUpdate(new, &old); len(errs) == 0 {
+				t.Errorf("Expected failure for test: %v", new)
+			}
+		})
+	}
+}
+
+func TestValidateCSIStorageCapacity(t *testing.T) {
+	storageClassName := "test-sc"
+	invalidName := "-invalid-@#$%^&*()-"
+
+	goodCapacity := storage.CSIStorageCapacity{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "csc-329803da-fdd2-42e4-af6f-7b07e7ccc305",
+			Namespace: metav1.NamespaceDefault,
+		},
+		StorageClassName: storageClassName,
+	}
+	goodTopology := metav1.LabelSelector{
+		MatchLabels: map[string]string{"foo": "bar"},
+	}
+
+	scenarios := map[string]struct {
+		isExpectedFailure bool
+		capacity          *storage.CSIStorageCapacity
+	}{
+		"good-capacity": {
+			capacity: &goodCapacity,
+		},
+		"missing-storage-class-name": {
+			isExpectedFailure: true,
+			capacity: func() *storage.CSIStorageCapacity {
+				capacity := goodCapacity
+				capacity.StorageClassName = ""
+				return &capacity
+			}(),
+		},
+		"bad-storage-class-name": {
+			isExpectedFailure: true,
+			capacity: func() *storage.CSIStorageCapacity {
+				capacity := goodCapacity
+				capacity.StorageClassName = invalidName
+				return &capacity
+			}(),
+		},
+		"good-capacity-value": {
+			capacity: func() *storage.CSIStorageCapacity {
+				capacity := goodCapacity
+				capacity.Capacity = resource.NewQuantity(1, resource.BinarySI)
+				return &capacity
+			}(),
+		},
+		"bad-capacity-value": {
+			isExpectedFailure: true,
+			capacity: func() *storage.CSIStorageCapacity {
+				capacity := goodCapacity
+				capacity.Capacity = resource.NewQuantity(-11, resource.BinarySI)
+				return &capacity
+			}(),
+		},
+		"good-topology": {
+			capacity: func() *storage.CSIStorageCapacity {
+				capacity := goodCapacity
+				capacity.NodeTopology = &goodTopology
+				return &capacity
+			}(),
+		},
+		"empty-topology": {
+			capacity: func() *storage.CSIStorageCapacity {
+				capacity := goodCapacity
+				capacity.NodeTopology = &metav1.LabelSelector{}
+				return &capacity
+			}(),
+		},
+		"bad-topology-fields": {
+			isExpectedFailure: true,
+			capacity: func() *storage.CSIStorageCapacity {
+				capacity := goodCapacity
+				capacity.NodeTopology = &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "foo",
+							Operator: metav1.LabelSelectorOperator("no-such-operator"),
+							Values: []string{
+								"bar",
+							},
+						},
+					},
+				}
+				return &capacity
+			}(),
+		},
+	}
+
+	for name, scenario := range scenarios {
+		t.Run(name, func(t *testing.T) {
+			errs := ValidateCSIStorageCapacity(scenario.capacity)
+			if len(errs) == 0 && scenario.isExpectedFailure {
+				t.Errorf("Unexpected success")
+			}
+			if len(errs) > 0 && !scenario.isExpectedFailure {
+				t.Errorf("Unexpected failure: %+v", errs)
+			}
+		})
+	}
+
+}
+
+func TestCSIServiceAccountToken(t *testing.T) {
+	driverName := "test-driver"
+	gcp := "gcp"
+	aws := "aws"
+	notRequiresRepublish := false
+	tests := []struct {
+		desc      string
+		csiDriver *storage.CSIDriver
+		wantErr   bool
+	}{
+		{
+			desc: "invalid - TokenRequests has tokens with the same audience",
+			csiDriver: &storage.CSIDriver{
+				ObjectMeta: metav1.ObjectMeta{Name: driverName},
+				Spec: storage.CSIDriverSpec{
+					TokenRequests:     []storage.TokenRequest{{Audience: gcp}, {Audience: gcp}},
+					RequiresRepublish: &notRequiresRepublish,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			desc: "invalid - TokenRequests has tokens with ExpirationSeconds less than 10min",
+			csiDriver: &storage.CSIDriver{
+				ObjectMeta: metav1.ObjectMeta{Name: driverName},
+				Spec: storage.CSIDriverSpec{
+					TokenRequests:     []storage.TokenRequest{{Audience: gcp, ExpirationSeconds: utilpointer.Int64Ptr(10)}},
+					RequiresRepublish: &notRequiresRepublish,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			desc: "invalid - TokenRequests has tokens with ExpirationSeconds less than 10min",
+			csiDriver: &storage.CSIDriver{
+				ObjectMeta: metav1.ObjectMeta{Name: driverName},
+				Spec: storage.CSIDriverSpec{
+					TokenRequests:     []storage.TokenRequest{{Audience: gcp, ExpirationSeconds: utilpointer.Int64Ptr(1<<32 + 1)}},
+					RequiresRepublish: &notRequiresRepublish,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			desc: "valid - TokenRequests has at most one token with empty string audience",
+			csiDriver: &storage.CSIDriver{
+				ObjectMeta: metav1.ObjectMeta{Name: driverName},
+				Spec: storage.CSIDriverSpec{
+					TokenRequests:     []storage.TokenRequest{{Audience: ""}},
+					RequiresRepublish: &notRequiresRepublish,
+				},
+			},
+		},
+		{
+			desc: "valid - TokenRequests has tokens with different audience",
+			csiDriver: &storage.CSIDriver{
+				ObjectMeta: metav1.ObjectMeta{Name: driverName},
+				Spec: storage.CSIDriverSpec{
+					TokenRequests:     []storage.TokenRequest{{}, {Audience: gcp}, {Audience: aws}},
+					RequiresRepublish: &notRequiresRepublish,
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test.csiDriver.Spec.AttachRequired = new(bool)
+		test.csiDriver.Spec.PodInfoOnMount = new(bool)
+		if errs := ValidateCSIDriver(test.csiDriver); test.wantErr != (len(errs) != 0) {
+			t.Errorf("ValidateCSIDriver = %v, want err: %v", errs, test.wantErr)
 		}
 	}
 }

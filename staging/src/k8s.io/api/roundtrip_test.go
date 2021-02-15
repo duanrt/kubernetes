@@ -20,9 +20,11 @@ import (
 	"math/rand"
 	"testing"
 
+	admissionv1 "k8s.io/api/admission/v1"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	admissionregv1beta1 "k8s.io/api/admissionregistration/v1beta1"
+	apiserverinternalv1alpha1 "k8s.io/api/apiserverinternal/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
@@ -36,15 +38,18 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	batchv2alpha1 "k8s.io/api/batch/v2alpha1"
+	certificatesv1 "k8s.io/api/certificates/v1"
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	coordinationv1beta1 "k8s.io/api/coordination/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	eventsv1beta1 "k8s.io/api/events/v1beta1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	imagepolicyv1alpha1 "k8s.io/api/imagepolicy/v1alpha1"
 	networkingv1 "k8s.io/api/networking/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	nodev1 "k8s.io/api/node/v1"
 	nodev1alpha1 "k8s.io/api/node/v1alpha1"
 	nodev1beta1 "k8s.io/api/node/v1beta1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -54,7 +59,6 @@ import (
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	schedulingv1alpha1 "k8s.io/api/scheduling/v1alpha1"
 	schedulingv1beta1 "k8s.io/api/scheduling/v1beta1"
-	settingsv1alpha1 "k8s.io/api/settings/v1alpha1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1alpha1 "k8s.io/api/storage/v1alpha1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
@@ -69,8 +73,10 @@ import (
 
 var groups = []runtime.SchemeBuilder{
 	admissionv1beta1.SchemeBuilder,
+	admissionv1.SchemeBuilder,
 	admissionregv1beta1.SchemeBuilder,
 	admissionregv1.SchemeBuilder,
+	apiserverinternalv1alpha1.SchemeBuilder,
 	appsv1beta1.SchemeBuilder,
 	appsv1beta2.SchemeBuilder,
 	appsv1.SchemeBuilder,
@@ -84,15 +90,18 @@ var groups = []runtime.SchemeBuilder{
 	batchv2alpha1.SchemeBuilder,
 	batchv1beta1.SchemeBuilder,
 	batchv1.SchemeBuilder,
+	certificatesv1.SchemeBuilder,
 	certificatesv1beta1.SchemeBuilder,
 	coordinationv1.SchemeBuilder,
 	coordinationv1beta1.SchemeBuilder,
 	corev1.SchemeBuilder,
+	eventsv1.SchemeBuilder,
 	eventsv1beta1.SchemeBuilder,
 	extensionsv1beta1.SchemeBuilder,
 	imagepolicyv1alpha1.SchemeBuilder,
 	networkingv1.SchemeBuilder,
 	networkingv1beta1.SchemeBuilder,
+	nodev1.SchemeBuilder,
 	nodev1alpha1.SchemeBuilder,
 	nodev1beta1.SchemeBuilder,
 	policyv1beta1.SchemeBuilder,
@@ -102,7 +111,6 @@ var groups = []runtime.SchemeBuilder{
 	schedulingv1alpha1.SchemeBuilder,
 	schedulingv1beta1.SchemeBuilder,
 	schedulingv1.SchemeBuilder,
-	settingsv1alpha1.SchemeBuilder,
 	storagev1alpha1.SchemeBuilder,
 	storagev1beta1.SchemeBuilder,
 	storagev1.SchemeBuilder,
